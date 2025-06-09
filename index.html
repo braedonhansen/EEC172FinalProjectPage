@@ -151,12 +151,35 @@
 
   <p>Once all 100 data points have occupied the .CSV, the data can be downloaded from S3 via a 
     Python program that accesses the bucket directly. Then, a MATLAB program extracts the data 
-    from the .CSV before filtering, transforming, and plotting the data.</p>
+    from the .CSV before filtering, transforming, and plotting the data. For filtering, 4 main filters 
+    were used to reduce noise.</p>
+  <p>First, a basic outlier filter that removed all data points where the distance was measured as 50 inches was implemented. 
+    This is due to the fact that the there was no point during testing where the sensor was actually
+    more than 50 inches away from a wall, meaning a reading of 50 inches or higher for distance was erroneous. </p>
+
+  <p>Next, a median filter, with a window size of 3, was used to smooth out potential outliers 
+    in the IMU data.  The median filter went through all 7 vectors of data, examining consecutive 
+    groups of 3 elements, and selecting the median of them, to create 7 new vectors of filtered data.</p>
+
+  <p>After that, the data was run through a Madgwick filter.  This is a sensor fusion 
+    algorithm specifically designed for IMU data.  The Madgwick filter works by taking 
+    the actual Euler angles from the IMU, converting them into quaternions, estimating 
+    the current Euler angles (as a quaternion), and then performing gradient descent using the 
+    actual and estimate Euler angles to minimize the error of the drift that occurs as the parasitic 
+    noise of the IMU begins to affect the data.</p>
+  
+  <p>Finally, the distance vector is run through an Enhanced Kalman filter.  This filter attempts to 
+    create a state-space model to estimate independent white noise in the measurement system, and reduce 
+    the bias.  It is nonlinear, as opposed to a standard Kalman filter, and effectively attempts to linearize 
+    a model based on previous value--akin to training data for a machine learning algorithm, but on a smaller scale.</p>
+  
 
   <h2>Challenges</h2>
   <p>
     The largest challenge we faced in the development of this project was parasitic noise 
-    from the IMU. Because the sensor is naturally slightly noisy, like any sensor, the signal is not a perfect representation of the real world. While this is generally not an issue for orientation estimation, it becomes a significant issue when converting to position data.
+    from the IMU. Because the sensor is naturally slightly noisy, like any sensor, the signal is not a perfect 
+    representation of the real world. While this is generally not an issue for orientation estimation, it becomes a 
+    significant issue when converting to position data.
     </p>
 
     <p>To calculate position, the acceleration data must be integrated twice and added to all 
@@ -172,7 +195,9 @@
         due to the double integration calculation. Next, a feature to allow the data to be visualized 
         without the (X,Y) data was implemented, so the data could be visualized strictly with the more 
         accurate gyroscope measurements. This was helpful for measurements where the device was not moved 
-        as much, and most of the movement was rotational. </p>
+        as much, and most of the movement was rotational. Finally, 4 layers of filtering were applied to the data 
+        to further reduce noise: a basic outlier filter, a median filter of length 3, a Madgwick filter for 
+        accelerometer and gyroscopic data, and an Enhanced Kalman filter for the distance data.</p>
     
 <p>
   The more advanced filtering is able to take a rough scan and turn it into a much smoother, organized image. Shown below is a water bottle and 
