@@ -17,65 +17,202 @@
       max-width: 800px;
       padding: 2rem;
     }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+    ul {
+      margin-left: 20px;
+    }
   </style>
 </head>
 <body>
 
 <div class="markdown-body">
 
-  <h1>EEC172 Final Project Assignment</h1>
+  <h1>EEC172 Final Project: 2D Ultrasonic Sonar Scanner</h1>
+  <p><strong>Authors:</strong> Braedon Hansen, Haaris Tahir-Kheli</p>
 
-  <ul>
-    <li><a href="#">Overview</a></li>
-    <li><a href="#">Project Proposal and Bill of Materials</a></li>
-    <li><a href="#">Live Demonstration and Verification</a></li>
-    <li>
-      <a href="#">Project Deliverables</a>
-      <ul>
-        <li><a href="#">In-class Presentation</a></li>
-        <li><a href="#">Written Final Report</a></li>
-        <li><a href="#">Project Webpage and Video Demo</a></li>
-      </ul>
-    </li>
-  </ul>
-
-  <h2>Final Project Deadlines</h2>
-  <ul>
-    <li>Project Proposal 2nd session of week 8. When Lab4 is due.</li>
-    <li>Project Demo/Verification (no extensions) 2nd session of week 10.</li>
-    <li><strong>(6/8 Sunday Midnight)</strong> Project Deliverables (no extensions)</li>
-  </ul>
-
-  <blockquote>Note: This page may be updated, please refresh the page regularly for changes to appear.</blockquote>
   <iframe width="560" height="315" 
-        src="https://www.youtube.com/embed/iicfmXFALM8" 
+        src="https://www.youtube.com/embed/Dsf1Td73m7g" 
         frameborder="0" 
         allowfullscreen>
-</iframe>
-  <h2>Overview</h2>
+  </iframe>
+
+  <h2>Description</h2>
+  <p>For the final project, we chose to build a 2-dimensional sonar scanner for mapping 
+    areas of a room or house. We chose to do this because all currently available products 
+    of the same nature are very expensive and not accessible to most consumers. It contains 
+    an ultrasonic distance sensor and 6-axis inertial measurement unit (IMU) for mapping surroundings, 
+    and a organic light emitting diode (OLED) display for showing the state of the device, 
+    powered by a Texas Instruments CC3200 LaunchPad development board. The data was sent to 
+    Amazon Web Services (AWS) for storage, where it could be downloaded for processing and visualization.</p>
+
+    <img src="device.jpg" alt="Device">
+
+  <h2>Design</h2>
+  <ul>
+    <li>2 Hardware Communication Protocols: I²C for the IMU, SPI for the OLED.</li>
+    <li>Web Service: AWS IoT, Lambda, S3 Bucket.</li>
+    <li>2 Sensing Devices: IMU, Ultrasonic Distance Sensor</li>
+  </ul>
+
+  <h3>Functional Specification</h3>
+  <img src="flowchart.png" alt="Functional Flowchart">
+  <p>The high-level functionality of the device begins with booting. During booting, an initial reading of the IMU is 
+    taken and used as a calibration value for the remainder of the loop. The OLED is initialized as well, loading to a blank screen.</p>
+
+    <p>Once booting is complete, the device goes into its <code>Polling</code> state, showing a `P' on the OLED, collecting a data 
+    point from the IMU and distance sensor, and looping until it collects 100 samples. Then, it attempts to connects to AWS, 
+    skipping to the <code>Done</code> state if there is a failure. If AWS connects successfully, an `S' is displayed and each point is 
+    sent to an AWS IoT Device Shadow, which triggers a Lambda function that appends a .CSV file in an S3 Bucket.</p>
+
+    <p>Finally, after all data has been sent, it enters a <code>Done</code> state, which waits for reset while displaying a `D' on the OLED.</p>
+
+  <h3>System Architecture</h3>
+  <img src="blockdiagram.png" alt="System Block Diagram">
+  <table>
+    <thead>
+      <tr><th>Pin</th><th>Peripheral Function</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>PIN_15</td><td>GPIO Output</td><td>Trigger Pulse (Ultrasonic)</td></tr>
+      <tr><td>PIN_63</td><td>GPIO Input</td><td>Echo Input (Ultrasonic)</td></tr>
+      <tr><td>PIN_55</td><td>UART0 TX</td><td>UART0 Transmit (USB-Serial)</td></tr>
+      <tr><td>PIN_57</td><td>UART0 RX</td><td>UART0 Receive (USB-Serial)</td></tr>
+      <tr><td>PIN_01</td><td>I²C SCL</td><td>I²C Clock line for IMU</td></tr>
+      <tr><td>PIN_02</td><td>I²C SDA</td><td>I²C Data line for IMU</td></tr>
+      <tr><td>PIN_07</td><td>SPI MOSI</td><td>OLED SPI Data (MOSI)</td></tr>
+      <tr><td>PIN_05</td><td>SPI CLK</td><td>OLED SPI Clock (SCLK)</td></tr>
+      <tr><td>PIN_62</td><td>GPIO Output</td><td>OLED DC (Data/Command)</td></tr>
+      <tr><td>PIN_18</td><td>GPIO Output</td><td>OLED Reset (R)</td></tr>
+      <tr><td>PIN_61</td><td>GPIO Output</td><td>OLED Chip Select (CS)</td></tr>
+    </tbody>
+  </table>
+
+  <p>As shown in the above table, the device uses 11 GPIO pins on the CC3200 LaunchPad.</p>
+
+  <p>The ultrasonic distance sensor uses pins 15 & 63 for <code>Trigger</code> and <code>Echo</code>, 
+    respectively. The UART for debugging uses the standard 55 & 57. The IMU uses two pins for I²C, 
+    with 1 and 2 as <code>Clock</code> and <code>Data</code>, respectively. Finally the OLED uses 5 pins for SPI, 
+    using 7 for <code>Master Out Slave In</code>, 5 for <code>Clock</code>, 62 for <code>Data/Command</code>, 18 for <code>Reset</code>, 
+    and 61 for <code>Chip Select</code>.</p>
+
+  <h2>Implementation</h2>
+  <h3>Hardware</h3>
+  <img src="circuitdiagram.png" alt="Circuit Diagram">
+  <h4>Sensors</h4>
+  <ul>
+    <li>Distance Sensor</li>
+    <li>IMU</li>
+  </ul>
+  <p>The <code>Trigger</code> pin on the distance sensor is configured using an interrupt handler on a peripheral clock. 
+    This is run every 0.05 seconds, setting a frequency of 20Hz. When this is triggered, it pulls the <code>Echo</code> pin high. 
+    The signal remains high until an echo is received, at which point, the signal is dropped. Another peripheral 
+    clock is used to time that difference, with an interrupt set to trigger at both edges. In this interrupt, the 
+    falling edge is used to trigger a reading. The distance is derived using the speed of sound and the time of 
+    travel. Then an IMU value is read and both data points are saved together.</p>
+
+    <p>At a high level, one timer sets a trigger speed, and the reciept of the return signal triggers the function to 
+    save the data from both sensors.</p>
+
+  <h4>Actuators</h4>
+  <ul>
+    <li>OLED Display</li>
+  </ul>
+  <p>The OLED shows device state: 'P' for polling, 'S' for sending, 'D' for done.</p>
+
+  <h3>Software</h3>
+  <ul>
+    <li>Code Composer Studio (CCS) C code</li>
+    <li>AWS</li>
+    <li>Python</li>
+    <li>MATLAB</li>
+  </ul>
+  <p>The software system starts at the CC3200, where all the data is recorded, 
+    according to the hardware explanation above. Once the full data length is recorded, 
+    in a C struct string, each data point is parsed into a JSON message which is then 
+    sent to an AWS IoT Core Device Shadow. Though it only remains in the shadow for a moment 
+    before it is replaced, a Lambda function is triggered at each update. This function 
+    first clears an S3 bucket for the new batch of data then adds creates a .CSV and adds the 
+    new data to the  bottom of the file.</p>
+
+  <p>Once all 100 data points have occupied the .CSV, the data can be downloaded from S3 via a 
+    Python program that accesses the bucket directly. Then, a MATLAB program extracts the data 
+    from the .CSV before filtering, transforming, and plotting the data.</p>
+
+  <h2>Challenges</h2>
   <p>
-    For the final project, you will design and prototype a product that makes use of what you've learned in previous labs.
-  </p>
+    The largest challenge we faced in the development of this project was parasitic noise 
+    from the IMU. Because the sensor is naturally slightly noisy, like any sensor, the signal is not a perfect representation of the real world. While this is generally not an issue for orientation estimation, it becomes a significant issue when converting to position data.
+    </p>
 
-  <p>
-    The project is divided into 3 primary components:
-  </p>
+    <p>To calculate position, the acceleration data must be integrated twice and added to all 
+    previous values. This double integration causes the noise to be squared as well, and the 
+    summing operation compounds the noise further. This compounding noise makes it increasingly difficult 
+    to maintain an accurate position estimate after more than a few seconds. </p>
+    
+    <p>To counteract this, a number of filtering methods were applied to the data. First, all 
+        values under 0.02g in linear acceleration were ignored. This was intended to be a 
+        very simple high-pass filter, which erased any noise while the device was stationary, 
+        while allowing for larger (human) movements to make it through.
+        This error is compounded exponentially when deriving position from an accelerometer, 
+        due to the double integration calculation. Next, a feature to allow the data to be visualized 
+        without the (X,Y) data was implemented, so the data could be visualized strictly with the more 
+        accurate gyroscope measurements. This was helpful for measurements where the device was not moved 
+        as much, and most of the movement was rotational. </p>
+    
+<p>
+  The more advanced filtering is able to take a rough scan and turn it into a much smoother, organized image. Shown below is a water bottle and 
+  glasses case which are scanned. The original scan is messy and noisy. The last image shows the final, filtered version. </p>
+  
+  <img src="objects.jpg" alt="Objects">
+  <p>Objects</p>
+  <img src="unfiltered.png" alt="Unfiltered Data">
+  <p>Unfiltered</p>
+  <img src="filtered.png" alt="Filtered Data">
+  <p>Filtered</p>
 
-  <ol>
-    <li>[10 pts] Project Proposal and Bill of Materials (BOM)</li>
-    <li>[60 pts] Live Demonstration and Verification</li>
-    <li>[30 pts] Project Deliverables
-      <ul>
-        <li>[7.5 pts] In-class Presentation</li>
-        <li>[7.5 pts] Written Report</li>
-        <li>[15 pts] Webpage and Video Demo</li>
-      </ul>
-    </li>
-  </ol>
 
-  <h2>MIKE</h2>
-  <p>Here is an image of Mike:</p>
-  <img src="mike.png" alt="Photo of Mike" style="max-width:100%; border-radius:4px;">
+
+
+  <h2>Future Work</h2>
+  <p>This project has plenty of room to grow. A 9 DoF IMU with higher 
+    precision would allow better measurements and more accurate filtering. 
+    This would permit much longer readings, potentially long enough for a whole 
+    room or a small 3-D scan. Building the device a better case which could hold 
+    the battery inside, rather than using a large external battery would also be a 
+    good improvement. The user interface could be improved on the device side by 
+    implementing a simpler reset protocol, allowing for multiple scans without 
+    downloading the data and resetting the device. Finally, if data length was improved, 
+    the device could include a MicroSD card to store larger datasets while polling, 
+    dramatically expanding the practical applications of the device. </p>
+
+  <h2>Bill of Materials</h2>
+  <table>
+    <thead>
+      <tr><th>Component</th><th>Price</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>HC-SR04 Ultrasonic Sensor</td><td>$3.95</td><td>Already owned</td></tr>
+      <tr><td>Adafruit ISM330DHCX - 6 DoF IMU</td><td>$19.95</td><td>Purchased</td></tr>
+      <tr><td>Solid-Core Wire Spool - 25ft - 22AWG</td><td>$2.95</td><td>Already owned</td></tr>
+      <tr><td>Adafruit Perma-Proto PCB - Single</td><td>$4.50</td><td>Already owned</td></tr>
+      <tr><th>Total (purchased)</th><th>$19.95</th><td></td></tr>
+    </tbody>
+  </table>
 
 </div>
 
